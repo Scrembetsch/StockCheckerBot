@@ -1,26 +1,24 @@
-﻿using StockCheckerBot.Config;
+﻿using StockCheckerBot.Config.Section;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Linq;
 using System.Media;
 using System.Net.Http;
-using System.Text;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace StockCheckerBot.StockChecker
+namespace StockCheckerBot.WebsiteChecker
 {
     public class BaseStockChecker : IStockChecker
     {
-        private List<string> _CheckUrls = new List<string>();
-        private List<string> _OpenUrls = new List<string>();
-        private List<string> _Alias = new List<string>();
-        private List<string> _SoundFiles = new List<string>();
+        private readonly List<string> _CheckUrls = new List<string>();
+        private readonly List<string> _OpenUrls = new List<string>();
+        private readonly List<string> _Alias = new List<string>();
+        private readonly List<string> _SoundFiles = new List<string>();
 
         private float _CheckInterval = 30.0f;
-
-        public string FallbackUrl;
+        public string FallbackUrl { get; set; }
 
         public BaseStockChecker(string configSection)
         {
@@ -32,10 +30,11 @@ namespace StockCheckerBot.StockChecker
             }
 
             _CheckInterval = config.CheckInterval;
+            FallbackUrl = config.FallbackUrl;
 
-            //SetSound(config.Sounds.InStock, IWebsiteChecker.CheckState.InStock);
-            //SetSound(config.Sounds.NotAvailable, IWebsiteChecker.CheckState.NotAvailable);
-            //SetSound(config.Sounds.RequestError, IWebsiteChecker.CheckState.Error);
+            SetSound(config.Sounds.InStock, IStockChecker.CheckState.InStock);
+            SetSound(config.Sounds.NotAvailable, IStockChecker.CheckState.NotAvailable);
+            SetSound(config.Sounds.RequestError, IStockChecker.CheckState.RequestError);
         }
 
         public virtual bool Check(HttpResponseMessage response)
@@ -77,11 +76,11 @@ namespace StockCheckerBot.StockChecker
             _CheckInterval = checkEverySeconds;
         }
 
-        public void UnRegisterUrl(string url)
+        public void UnRegisterUrl(string checkUrl)
         {
             while (true)
             {
-                int index = FindUrl(url);
+                int index = FindUrl(checkUrl);
                 if (index == -1)
                 {
                     return;
@@ -105,7 +104,7 @@ namespace StockCheckerBot.StockChecker
             return -1;
         }
 
-        private HttpClient CreateClient()
+        private static HttpClient CreateClient()
         {
             HttpClientHandler clientHandler = new HttpClientHandler()
             {
@@ -171,7 +170,7 @@ namespace StockCheckerBot.StockChecker
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"{_Alias[index]}: ERROR");
-                PlaySound(IStockChecker.CheckState.Error);
+                PlaySound(IStockChecker.CheckState.RequestError);
             }
         }
 
@@ -183,12 +182,13 @@ namespace StockCheckerBot.StockChecker
             }
             _SoundFiles[(int)state] = path;
         }
+
         public void PlaySound(IStockChecker.CheckState state)
         {
             PlaySound(_SoundFiles[(int)state]);
         }
 
-        public void PlaySound(string path)
+        public static void PlaySound(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -204,28 +204,33 @@ namespace StockCheckerBot.StockChecker
             }
         }
 
-        private void PlaySystemSound(string path)
+        private static void PlaySystemSound(string path)
         {
-            switch (path)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                default:
-                case "!Asterik":
-                    SystemSounds.Asterisk.Play();
-                    break;
+                switch (path)
+                {
+                    default:
+                        SystemSounds.Asterisk.Play();
+                        break;
 
-                case "!Hand":
-                    SystemSounds.Hand.Play();
-                    break;
+                    case "!Hand":
+                        SystemSounds.Hand.Play();
+                        break;
+                }
             }
         }
 
-        private void PlayCustomSound(string path)
+        private static void PlayCustomSound(string path)
         {
-            SoundPlayer player = new SoundPlayer(path);
-            player.Play();
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                SoundPlayer player = new SoundPlayer(path);
+                player.Play();
+            }
         }
 
-        private void OpenUrl(string url)
+        private static void OpenUrl(string url)
         {
             var psi = new System.Diagnostics.ProcessStartInfo();
             psi.UseShellExecute = true;

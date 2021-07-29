@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
+﻿using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace StockCheckerBot.StockChecker
+namespace StockCheckerBot.WebsiteChecker
 {
     public interface IStockChecker
     {
@@ -13,16 +9,19 @@ namespace StockCheckerBot.StockChecker
         {
             InStock,
             NotAvailable,
-            Error,
+            RequestError,
 
             NumStates
         }
+
         public void RegisterUrl(string checkUrl, string openUrl, string alias);
+
         public void UnRegisterUrl(string checkUrl);
 
         public void SetCheckInterval(float checkEverySeconds);
 
         public Task<bool> Run();
+
         public bool Check(HttpResponseMessage response);
 
         public void SetSound(string path, CheckState state);
