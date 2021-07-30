@@ -1,4 +1,5 @@
 ﻿using StockCheckerBot.Config.Section;
+using StockCheckerBot.Util;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -16,9 +17,9 @@ namespace StockCheckerBot.WebsiteChecker
         private readonly List<string> _OpenUrls = new List<string>();
         private readonly List<string> _Alias = new List<string>();
         private readonly List<string> _SoundFiles = new List<string>();
+        private string _FallbackUrl;
 
         private float _CheckInterval = 30.0f;
-        public string FallbackUrl { get; set; }
 
         public BaseStockChecker(string configSection)
         {
@@ -30,7 +31,7 @@ namespace StockCheckerBot.WebsiteChecker
             }
 
             _CheckInterval = config.CheckInterval;
-            FallbackUrl = config.FallbackUrl;
+            _FallbackUrl = config.FallbackUrl;
 
             SetSound(config.Sounds.InStock, IStockChecker.CheckState.InStock);
             SetSound(config.Sounds.NotAvailable, IStockChecker.CheckState.NotAvailable);
@@ -51,7 +52,7 @@ namespace StockCheckerBot.WebsiteChecker
 
         public async virtual Task<bool> Run()
         {
-            HttpClient client = CreateClient();
+            HttpClient client = Web.CreateClient();
 
             // Do until user cancels
             while (true)
@@ -104,21 +105,6 @@ namespace StockCheckerBot.WebsiteChecker
             return -1;
         }
 
-        private static HttpClient CreateClient()
-        {
-            HttpClientHandler clientHandler = new HttpClientHandler()
-            {
-                AutomaticDecompression = System.Net.DecompressionMethods.GZip
-            };
-            HttpClient client = new HttpClient(clientHandler);
-
-            client.DefaultRequestHeaders.Add("Accept", "*/*");
-            client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
-            client.DefaultRequestHeaders.Add("Connection", "keep-alive");
-
-            return client;
-        }
-
         private List<Task<HttpResponseMessage>> SendAllRequests(HttpClient client)
         {
             List<Task<HttpResponseMessage>> responses = new List<Task<HttpResponseMessage>>();
@@ -156,7 +142,7 @@ namespace StockCheckerBot.WebsiteChecker
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"{_Alias[index]}: SUCCESS");
-                    OpenUrl(_OpenUrls[index]);
+                    Web.OpenUrl(_OpenUrls[index]);
                     PlaySound(IStockChecker.CheckState.InStock);
                 }
                 else
@@ -185,57 +171,12 @@ namespace StockCheckerBot.WebsiteChecker
 
         public void PlaySound(IStockChecker.CheckState state)
         {
-            PlaySound(_SoundFiles[(int)state]);
+            Sound.PlaySound(_SoundFiles[(int)state]);
         }
 
-        public static void PlaySound(string path)
+        public string GetFallBackUrl()
         {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return;
-            }
-            if (path.StartsWith("!"))
-            {
-                PlaySystemSound(path);
-            }
-            else
-            {
-                PlayCustomSound(path);
-            }
-        }
-
-        private static void PlaySystemSound(string path)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                switch (path)
-                {
-                    default:
-                        SystemSounds.Asterisk.Play();
-                        break;
-
-                    case "!Hand":
-                        SystemSounds.Hand.Play();
-                        break;
-                }
-            }
-        }
-
-        private static void PlayCustomSound(string path)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                SoundPlayer player = new SoundPlayer(path);
-                player.Play();
-            }
-        }
-
-        private static void OpenUrl(string url)
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo();
-            psi.UseShellExecute = true;
-            psi.FileName = url;
-            System.Diagnostics.Process.Start(psi);
+            return _FallbackUrl;
         }
     }
 }

@@ -15,14 +15,13 @@ namespace StockCheckerBot.WebsiteChecker
         }
 
         public void RegisterUrl(string checkUrl, string openUrl, string alias);
-
         public void UnRegisterUrl(string checkUrl);
+        public string GetFallBackUrl();
 
         public void SetCheckInterval(float checkEverySeconds);
+        public bool Check(HttpResponseMessage response);
 
         public Task<bool> Run();
-
-        public bool Check(HttpResponseMessage response);
 
         public void SetSound(string path, CheckState state);
     }
