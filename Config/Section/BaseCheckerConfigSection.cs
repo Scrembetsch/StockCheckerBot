@@ -6,6 +6,7 @@ namespace StockCheckerBot.Config.Section
     public class BaseCheckerConfigSection : ConfigurationSection
     {
         private const string CheckIntervalId = "CheckInterval";
+        private const string SiteOpenThreshholdId = "SiteOpenThreshold";
         private const string FallbackUrlId = "FallbackUrl";
         private const string SoundsId = "Sounds";
 
@@ -19,6 +20,19 @@ namespace StockCheckerBot.Config.Section
             set
             {
                 this[CheckIntervalId] = value;
+            }
+        }
+
+        [ConfigurationProperty(SiteOpenThreshholdId, DefaultValue = 30)]
+        public int SiteOpenThreshold
+        {
+            get
+            {
+                return (int)this[SiteOpenThreshholdId];
+            }
+            set
+            {
+                this[SiteOpenThreshholdId] = value;
             }
         }
 

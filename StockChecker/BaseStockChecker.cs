@@ -13,13 +13,24 @@ namespace StockCheckerBot.WebsiteChecker
 {
     public class BaseStockChecker : IStockChecker
     {
+        private const ConsoleColor InfoColor = ConsoleColor.White;
+        private const ConsoleColor TimestampColor = ConsoleColor.Blue;
+        private const ConsoleColor SuccessColor = ConsoleColor.Green;
+        private const ConsoleColor NoticeColor = ConsoleColor.Yellow;
+        private const ConsoleColor ErrorColor = ConsoleColor.Red;
+
         private readonly List<string> _CheckUrls = new List<string>();
         private readonly List<string> _OpenUrls = new List<string>();
-        private readonly List<string> _Alias = new List<string>();
-        private readonly List<string> _SoundFiles = new List<string>();
-        private string _FallbackUrl;
 
-        private float _CheckInterval = 30.0f;
+        private readonly List<string> _Alias = new List<string>();
+
+        private readonly List<DateTime> _LastOpened = new List<DateTime>();
+
+        private readonly List<string> _SoundFiles = new List<string>();
+
+        private readonly string _FallbackUrl;
+        private readonly float _CheckInterval;
+        private readonly float _SiteOpenThreshold;
 
         public BaseStockChecker(string configSection)
         {
@@ -31,6 +42,7 @@ namespace StockCheckerBot.WebsiteChecker
             }
 
             _CheckInterval = config.CheckInterval;
+            _SiteOpenThreshold = config.SiteOpenThreshold;
             _FallbackUrl = config.FallbackUrl;
 
             SetSound(config.Sounds.InStock, IStockChecker.CheckState.InStock);
@@ -48,6 +60,7 @@ namespace StockCheckerBot.WebsiteChecker
             _CheckUrls.Add(checkUrl);
             _OpenUrls.Add(openUrl);
             _Alias.Add(alias);
+            _LastOpened.Add(DateTime.MinValue);
         }
 
         public async virtual Task<bool> Run()
@@ -58,7 +71,7 @@ namespace StockCheckerBot.WebsiteChecker
             while (true)
             {
                 DateTime begin = DateTime.Now;
-                Console.WriteLine(begin);
+                ConsoleWrapper.WriteLine(begin, TimestampColor);
                 // Send all requests to get product info
                 var responseTasks = SendAllRequests(client);
 
@@ -70,11 +83,6 @@ namespace StockCheckerBot.WebsiteChecker
                 waitTime = Math.Max(0, waitTime);
                 Thread.Sleep(waitTime);
             }
-        }
-
-        public void SetCheckInterval(float checkEverySeconds)
-        {
-            _CheckInterval = checkEverySeconds;
         }
 
         public void UnRegisterUrl(string checkUrl)
@@ -140,23 +148,33 @@ namespace StockCheckerBot.WebsiteChecker
             {
                 if (Check(response))
                 {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"{_Alias[index]}: SUCCESS");
-                    Web.OpenUrl(_OpenUrls[index]);
-                    PlaySound(IStockChecker.CheckState.InStock);
+                    ConsoleWrapper.WriteLine($"{_Alias[index]}: SUCCESS", SuccessColor);
+                    OnSuccess(index);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"{_Alias[index]}: Not available");
+                    ConsoleWrapper.WriteLine($"{_Alias[index]}: Not available", InfoColor);
                     PlaySound(IStockChecker.CheckState.NotAvailable);
                 }
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"{_Alias[index]}: ERROR");
+                ConsoleWrapper.WriteLine($"{_Alias[index]}: ERROR", ErrorColor);
                 PlaySound(IStockChecker.CheckState.RequestError);
+            }
+        }
+
+        private void OnSuccess(int index)
+        {
+            if ((DateTime.Now - _LastOpened[index]).TotalSeconds > _SiteOpenThreshold)
+            {
+                Web.OpenUrl(_OpenUrls[index]);
+                PlaySound(IStockChecker.CheckState.InStock);
+                _LastOpened[index] = DateTime.Now;
+            }
+            else
+            {
+                ConsoleWrapper.WriteLine("Opening site skipped, due to cooldown", NoticeColor);
             }
         }
 

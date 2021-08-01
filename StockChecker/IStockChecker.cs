@@ -18,7 +18,6 @@ namespace StockCheckerBot.WebsiteChecker
         public void UnRegisterUrl(string checkUrl);
         public string GetFallBackUrl();
 
-        public void SetCheckInterval(float checkEverySeconds);
         public bool Check(HttpResponseMessage response);
 
         public Task<bool> Run();
