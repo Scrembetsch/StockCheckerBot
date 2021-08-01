@@ -52,6 +52,7 @@ namespace StockCheckerBot
 
         private static void OpenFallbackPages()
         {
+            Sound.PlaySound(GetRestartSound());
             foreach (var checker in _Checkers)
             {
                 string url = checker.GetFallBackUrl();
@@ -70,6 +71,11 @@ namespace StockCheckerBot
         private static bool ShouldRestart()
         {
             return ConfigurationManager.AppSettings["RestartOnCrash"] == "true";
+        }
+
+        private static string GetRestartSound()
+        {
+            return ConfigurationManager.AppSettings["RestartSound"];
         }
     }
 }
